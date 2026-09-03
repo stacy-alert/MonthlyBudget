@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Earnings Volatility Scanner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Earnings Volatility Scanner</h1>
+    <p class="subtitle">Short-volatility earnings screen: term-structure slope, IV30/RV30, and liquidity filters.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-row">
+        <div class="field">
+          <label for="scan-date">Watchlist date</label>
+          <input type="date" id="scan-date">
+        </div>
+        <div class="field">
+          <label for="min-mcap">Min market cap ($)</label>
+          <input type="number" id="min-mcap" value="500000000" step="100000000" min="0">
+        </div>
+        <button id="scan-btn">Scan Today's Earnings</button>
+      </div>
+      <div id="scan-progress" class="progress-wrap hidden">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <span id="progress-label"></span>
+      </div>
+      <p id="scan-error" class="error hidden"></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-row">
+        <div class="field grow">
+          <label for="ticker-input">Look up a single ticker</label>
+          <input type="text" id="ticker-input" placeholder="e.g. AMZN" autocomplete="off">
+        </div>
+        <button id="lookup-btn">Check</button>
+      </div>
+      <div id="single-result"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Results <span id="results-count" class="muted"></span></h2>
+      <div class="table-wrap">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th>Verdict</th>
+              <th>Session</th>
+              <th>Expected Move</th>
+              <th>Avg Vol (30d)</th>
+              <th>IV30/RV30</th>
+              <th>TS Slope (0-45)</th>
+              <th>Price</th>
+            </tr>
+          </thead>
+          <tbody id="results-body">
+            <tr><td colspan="8" class="muted center">Run a scan to see today's watchlist.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <p>
+        Educational / research tool only. Not investment advice. Options data comes from Yahoo Finance via
+        <code>yfinance</code> and can be delayed, incomplete, or wrong - verify everything in your broker before
+        trading. The earnings calendar comes from Nasdaq's public calendar API and may miss or misclassify events.
+      </p>
+    </footer>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
