@@ -107,4 +107,11 @@ def single_ticker(symbol: str):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    import os
+
+    # Port 5000 is claimed by macOS's AirPlay Receiver on modern Macs, which
+    # blocks Flask from binding there with no obvious error in the browser.
+    # Default to 5001 instead; override with PORT=xxxx if you need to.
+    port = int(os.environ.get("PORT", 5001))
+    print(f" * Open http://127.0.0.1:{port} in your browser")
+    app.run(debug=True, host="127.0.0.1", port=port)
