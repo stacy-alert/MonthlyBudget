@@ -33,7 +33,7 @@ import pandas as pd
 import yfinance as yf
 from scipy.interpolate import interp1d
 
-from .market_data import get_session
+from .market_data import get_session, with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +175,7 @@ def compute_recommendation(symbol: str) -> Recommendation:
     stock = yf.Ticker(symbol, session=session)
 
     try:
-        raw_options = stock.options
+        raw_options = with_retry(lambda: stock.options, f"{symbol} options list")
     except Exception as e:
         raise TickerDataError(f"Could not load options for '{symbol}': {e}") from e
 
@@ -190,7 +190,9 @@ def compute_recommendation(symbol: str) -> Recommendation:
     options_chains = {}
     for exp_date in exp_dates:
         try:
-            options_chains[exp_date] = stock.option_chain(exp_date)
+            options_chains[exp_date] = with_retry(
+                lambda d=exp_date: stock.option_chain(d), f"{symbol} {exp_date} chain"
+            )
         except Exception as e:
             logger.warning("Skipping expiration %s for %s: %s", exp_date, symbol, e)
 
@@ -198,7 +200,7 @@ def compute_recommendation(symbol: str) -> Recommendation:
         raise TickerDataError(f"Could not load any option chains for '{symbol}'.")
 
     try:
-        underlying_price = get_current_price(stock)
+        underlying_price = with_retry(lambda: get_current_price(stock), f"{symbol} current price")
     except Exception as e:
         raise TickerDataError(f"Unable to retrieve underlying price for '{symbol}': {e}") from e
 
@@ -252,7 +254,7 @@ def compute_recommendation(symbol: str) -> Recommendation:
     ts_slope_0_45 = (term_spline(45) - term_spline(min(dtes))) / (45 - min(dtes))
 
     try:
-        price_history = stock.history(period="3mo")
+        price_history = with_retry(lambda: stock.history(period="3mo"), f"{symbol} price history")
     except Exception as e:
         raise TickerDataError(f"Unable to retrieve price history for '{symbol}': {e}") from e
 

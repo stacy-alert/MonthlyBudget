@@ -10,10 +10,43 @@ curl_cffi isn't installed, so the app still runs, just less reliably.
 """
 from __future__ import annotations
 
+import logging
+import random
 import threading
+import time
+from typing import Callable, TypeVar
+
+logger = logging.getLogger(__name__)
 
 _lock = threading.Lock()
 _session = None
+
+T = TypeVar("T")
+
+# Yahoo rate-limits cloud-hosting IP ranges (Render, Heroku, AWS, etc.) far
+# more aggressively than residential IPs, so transient 429/"too many
+# requests" style failures are expected in production, not a sign anything
+# is broken. Retry a handful of times with jittered backoff before giving up.
+_MAX_ATTEMPTS = 4
+_BASE_DELAY_SECONDS = 1.5
+
+
+def with_retry(fn: Callable[[], T], description: str = "request") -> T:
+    last_error: Exception | None = None
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            return fn()
+        except Exception as e:  # noqa: BLE001 - yfinance raises assorted types
+            last_error = e
+            if attempt == _MAX_ATTEMPTS:
+                break
+            delay = _BASE_DELAY_SECONDS * (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+            logger.warning(
+                "%s failed (attempt %d/%d): %s - retrying in %.1fs",
+                description, attempt, _MAX_ATTEMPTS, e, delay,
+            )
+            time.sleep(delay)
+    raise last_error  # type: ignore[misc]
 
 
 def get_session():

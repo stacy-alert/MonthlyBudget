@@ -11,7 +11,7 @@ _VERDICT_ORDER = {"Recommended": 0, "Consider": 1, "Avoid": 2}
 
 def scan_tickers(
     tickers: list[str],
-    max_workers: int = 6,
+    max_workers: int = 3,
     progress_cb: Optional[Callable[[int, int], None]] = None,
 ) -> list[dict]:
     """Run compute_recommendation for every ticker concurrently.
