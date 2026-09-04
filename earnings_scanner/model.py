@@ -23,6 +23,8 @@ versus the original:
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from dataclasses import dataclass
 from datetime import date as date_cls
 from datetime import datetime, timedelta
@@ -161,12 +163,39 @@ def get_current_price(ticker: yf.Ticker) -> float:
     return float(todays_data["Close"].iloc[-1])
 
 
+# Yahoo rate-limits repeated requests hard, and the same ticker often gets
+# looked up more than once in a short window (a scan, then a manual re-check
+# of one row). Cache successful results briefly so that doesn't cost another
+# round trip - this doesn't fix an active IP-level block, but it meaningfully
+# cuts how often we hit Yahoo at all once one clears.
+_RESULT_CACHE_TTL_SECONDS = 600
+_result_cache: dict[str, tuple[float, "Recommendation"]] = {}
+_cache_lock = threading.Lock()
+
+
 def compute_recommendation(symbol: str) -> Recommendation:
     """Fetch options/price data for `symbol` and score it against the model.
 
     Raises TickerDataError with a human-readable reason on any failure -
     missing options chain, no usable expirations, stale/missing quotes, etc.
+    Results are cached for a few minutes per symbol (see module docstring).
     """
+    symbol_key = (symbol or "").strip().upper()
+
+    with _cache_lock:
+        cached = _result_cache.get(symbol_key)
+        if cached and (time.time() - cached[0]) < _RESULT_CACHE_TTL_SECONDS:
+            return cached[1]
+
+    rec = _compute_recommendation_uncached(symbol)
+
+    with _cache_lock:
+        _result_cache[symbol_key] = (time.time(), rec)
+
+    return rec
+
+
+def _compute_recommendation_uncached(symbol: str) -> Recommendation:
     symbol = (symbol or "").strip().upper()
     if not symbol:
         raise TickerDataError("No stock symbol provided.")
